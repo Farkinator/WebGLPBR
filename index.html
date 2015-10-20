@@ -1,0 +1,928 @@
+<!-- saved from url=(0062)http://www.cogsci.rpi.edu/public_html/destem/gamearch/hw4.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+  
+    <title>Getting Started with WebGL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="David Paul Steiner">
+    <meta name="description" content="Intro to WebGL">
+    <link rel="stylesheet" href="http://www.cogsci.rpi.edu/public_html/destem/gamearch/css/bijou.min.css">
+    <style type="text/css">
+      body{
+        margin-top:60px;
+      }
+      .light{
+        background:#CCC;'
+        color:#333;
+      }
+      .dark{
+        background:#333;
+        color:#CCC;
+      }
+      .grid{
+        text-align:center;
+        font-size:10px;
+      }
+      .banner{
+        text-align:center;
+        padding:10px 0;
+      }
+      .table{
+        margin-bottom:35px;
+      }
+      .banner button{
+        margin-top:7px;
+      }
+      .divider{
+        width:100%;
+        background:#CCC;
+        height:1px;
+        margin:25px 0;
+      }
+      .explainer{
+        font-weight:200;
+        color:#AAA;
+        margin-bottom:10px;
+      }
+      button{
+        margin-bottom:10px;
+      }
+      .button.primary.active{
+        background: #0C476E;
+        border-style: groove;
+        border-color: #5589AB;
+        border-width: 2px;
+      }
+    </style>
+</head>
+<body onload="glStart();">
+    <div class="container">
+      <div class="banner row">
+        <div class="span ten">
+          <h4>Physically Based Rendering</h4>
+          <h5>Paul Steiner</h5>
+        </div>
+      </div>
+    <div class="divider"></div>
+      <div class="grid">
+          <div class="row">
+            
+        <div class="span eight">    </div>
+          </div>
+        <div class="row">
+          <div class="span two"><h3>I think the UV's are mismapped in the json file, so I made a new file with different verts and UV values.</h3> <br/><button class = "button primary large" onclick='changeTexture(this)'>Take a look at this fixed .json file</button>
+          <h3>Fun with vertex shaders</h3><br/>
+          <button class="button primary small active vertex" id = "normal" onclick='changeVertShader(this)'>Normal</button>
+          <button class = "button primary small vertex" id = "fisheye" onclick='changeVertShader(this)'>Fisheye</button>
+          <button class ="button primary small vertex" id="wonky" onclick='changeVertShader(this)'>Wonky</button>
+          <h3>Fragment Shaders</h3><br/>
+          <button class="button primary small active frag" id = "texture" onclick='changeFragShader(this)'>Texture</button>
+          <button class="button primary small frag" id="lambert" onclick='changeFragShader(this)'>Lambert</button>
+
+          </div>
+          <div class="span eight">
+            <center><canvas id="canvas1" data-render="gl" width="400" height="400" <="" canvas=""></canvas></center>
+          </div>
+        </div>
+
+      </div>
+    </div>
+<script type="text/javascript" src = "glMatrix.js"></script>
+
+
+<script id="fs_phong" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform float p[10];
+    uniform vec3 lDir;
+    uniform sampler2D s_tex;
+    varying vec3 vNormal;
+    varying vec2 vUV;
+
+    void main(void) {
+
+       // NORMALIZE LENGTH OF THE INTERPOLATED NORMAL
+
+       vec3 normal = normalize(vNormal);
+
+       // COMPUTE DIFFUSE FACTOR
+
+       float ldn = dot(lDir, normal);
+       float diffuse = max(0., ldn);
+
+       // COMPUTE SPECULAR FACTOR
+
+       vec3 refl = 2. * ldn * normal - lDir;
+       float specular = pow(max(0., refl.z), p[9]);
+
+       // SUM PHONG REFLECTION COMPONENTS
+
+       vec3 c = vec3(p[0],p[1],p[2]) +
+                vec3(p[3],p[4],p[5]) * diffuse +
+                vec3(p[6],p[7],p[8]) * specular;
+
+       // APPLY GAMMA CORRECTION
+
+       gl_FragColor = vec4(pow(c.x,0.45),pow(c.y,0.45),pow(c.z,0.45),1.) * texture2D(s_tex, vUV);
+    }
+</script>
+
+<script id="fs_pbr" type = "x-shader/x-fragment">
+// Based on the render equation, fr = kd*f_lambert + ks*f_cook-torrance. Uses the fabled GGX function.
+/*
+kd + ks <=1.
+We get these values from...our metallic map?
+f_cook-torrance = (Distribution * Fresnel * Geometry) / (4 * )
+*/
+    precision mediump float;
+    uniform float p[10];
+    uniform vec3 lDir;
+
+    //All of our 2D samplers. Base color, height, ambient occlusion, Roughness, Metallic, normal
+    uniform sampler2D s_base;
+    uniform sampler2D s_height;
+    uniform sampler2D s_ao;
+    uniform sampler2D s_rough;
+    uniform sampler2D s_metal;
+    uniform sampler2D s_norm;
+
+    varying vNormal;
+    varying vUV;
+    varying vEye;
+
+    void main(void){
+      //Read our metallic map to see if this fragment is a metallic or dielectric material
+      vec4 metallic = texture2D(s_metal, vUV);
+      //The reflectance value, to be determined when we know if our fragment is metallic or not.
+      vec4 reflectance;
+      //If the map is white, then the material is metallic. Set reflectance equal to basecolor.
+      if(metallic == vec4(1.,1.,1.,1.)){
+
+      }
+    }
+</script>
+<script id="fs_lambert" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform float p[10];
+    uniform vec3 lDir;
+    varying vec3 vNormal;
+    varying vec2 vUV;
+
+    uniform sampler2D s_tex;
+
+    void main(void) {
+
+       // NORMALIZE LENGTH OF THE INTERPOLATED NORMAL
+
+       vec3 normal = normalize(vNormal);
+
+       // COMPUTE DIFFUSE FACTOR
+
+       float ldn = dot(lDir, normal);
+       float diffuse = max(0., ldn);
+
+       // SUM  REFLECTION COMPONENTS
+
+       vec3 c = vec3(0.5, 0.5, 0.5) +
+                vec3(p[0],p[1],p[2]) * diffuse;
+
+       // APPLY GAMMA CORRECTION
+
+       gl_FragColor = vec4(c,1.) * texture2D(s_tex, vUV);
+    }
+</script>
+
+<script id="fs_color" type="x-shader/x-fragment">
+    
+    varying vec3 vColor;
+
+    void main(void) {
+
+       gl_FragColor = vec4(vColor,1.);
+    }
+</script>
+
+<script id="fs_texture" type="x-shader/x-fragment">
+  precision mediump float;
+  varying vec2 vUV;
+  varying vec3 vNormal;
+  uniform sampler2D uSampler;
+
+  void main(void){
+    
+    gl_FragColor = texture2D(uSampler,vUV);
+  }
+</script>
+<script id="fs_debug" type="x-shader/x-fragment">
+  precision mediump float;
+  varying vec2 vUV;
+  varying vec3 vNormal;
+  varying vec3 vPosition;
+
+  void main(void){
+      gl_FragColor(vec4(vUV, 0., 0.));
+  }
+</script>
+
+<script id="vs_wonky" type="x-shader/x-vertex">
+precision mediump float;
+attribute vec3 aVertexPosition;
+attribute vec2 aVertexUV;
+attribute vec3 aVertexNormal;
+uniform mat4 uPMatrix; /* perspectiveView matrix */
+uniform mat4 uOMatrix; /* object matrix */
+uniform float time;
+varying vec2 vUV;
+varying vec3 vNormal;
+varying vec3 vPosition;
+
+void main(void) {
+   
+   
+   vUV = aVertexUV;
+   //just having fun with vertices don't mind me...
+   vPosition = aVertexPosition+sin(time*2.0)*tan(aVertexPosition.x)*-tan(aVertexPosition.y)*tan(aVertexPosition.z);
+
+   gl_Position = uPMatrix * uOMatrix * vec4(vPosition, 1.0);
+   // vNormal = aVertexNormal+sin(time*aVertexNormal.x)*cos(time*aVertexNormal.y)*cos(time*aVertexNormal.z);
+   vNormal = aVertexNormal;
+   vNormal = (uPMatrix * uOMatrix * vec4(vNormal, 1.0)).xyz;
+}
+</script>
+
+
+<script id="vs_fisheye" type="x-shader/x-vertex">
+precision mediump float;
+attribute vec3 aVertexPosition;
+attribute vec2 aVertexUV;
+attribute vec3 aVertexNormal;
+uniform mat4 uPMatrix; /* perspectiveView matrix */
+uniform mat4 uOMatrix; /* object matrix */
+uniform float time;
+varying vec2 vUV;
+varying vec3 vNormal;
+varying vec3 vPosition;
+
+//Yeah I know it's not technically fisheye lens, but
+void main(void){
+  vUV = aVertexUV;
+  //first find the position vector normally. x and y space should not be distorted with our fisheye lens.
+  vec4 fisheye = uPMatrix * uOMatrix * vec4(aVertexPosition, 1.0);
+  //based on x and y, find the z depth of our position using the sphere equation: things at center are closer, things at the edge are further away.
+  fisheye.z = sqrt(2.0- aVertexPosition.x*aVertexPosition.x + aVertexPosition.y*aVertexPosition.y);
+  // fisheye.x = sqrt(1.0 - aVertexPosition.z*aVertexPosition.z + aVertexPosition.y*aVertexPosition.y);
+  // fisheye.y = sqrt(1.0 - aVertexPosition.x*aVertexPosition.x + aVertexPosition.z*aVertexPosition.z);
+  vPosition = fisheye.xyz;
+  gl_Position = fisheye;
+  vNormal = aVertexNormal;
+  vNormal = (uPMatrix * uOMatrix * vec4(vNormal, 1.0)).xyz;
+}
+</script>
+<script id="vs_normal" type="x-shader/x-vertex">
+precision mediump float;
+attribute vec3 aVertexPosition;
+attribute vec2 aVertexUV;
+attribute vec3 aVertexNormal;
+uniform mat4 uPMatrix; /* perspectiveView matrix */
+uniform mat4 uOMatrix; /* object matrix */
+
+varying vec2 vUV;
+varying vec3 vNormal;
+varying vec4 vPosition;
+
+
+void main(void) {
+  vUV = aVertexUV;
+  vNormal = (uPMatrix * uOMatrix * vec4(aVertexNormal, 1.0)).xyz;
+  vPosition = uPMatrix * uOMatrix * vec4(aVertexPosition, 1.0);
+  gl_Position = vPosition;
+}
+</script>
+
+<script>
+
+
+
+
+
+// FUNCTION TO RETURN THE IDENTITY MATRIX:
+
+   function identity() { return [1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]; }
+
+// FUNCTION TO RETURN A PERSPECTIVE TRANSFORM, SIMULATING A CAMERA AT Z = fl:
+
+   //function perspective(fl) { return [1,0,0,0, 0,1,0,0, 0,0,1/fl,-1/fl, 0,0,0,1]; }
+
+// KEEP AN ARRAY OF ALL THE WEBGL CANVASES IN THE DOC:
+
+   var glCanvases = [];
+   //A flag to tell us whether or not to draw stuff.
+   var modelLoaded = false;
+   //Writing textures over themselves can really screw stuff up.
+   var textureLoaded = false;
+// KEEP TRACK OF STARTING TIME AND CURRENT TIME:
+
+   var startTime = 0.0;
+   var prevTime = 0.0;
+   var time = 0.0;
+   var deltaTime = 0.0;
+
+   var vertShaderName = 'vs_normal';
+   var fragShaderName = 'fs_texture';
+
+   function changeVertShader(inElement){
+      //Deactivate the currently selected vertex shader button.
+      document.getElementsByClassName("button primary small active vertex")[0].className = "button primary small vertex";
+      //activate the element passed in through the function parameter.
+      inElement.className = "button primary small active vertex";
+      //set vertshadername to the id of our passed in elemnt.
+
+      vertShaderName = 'vs_' + inElement.id;
+   }
+   //same thing but for frag shaders. I'm lazy, so i didn't make just one change shader function. so sue me.
+   function changeFragShader(inElement){
+      //Deactivate the currently selected vertex shader button.
+      document.getElementsByClassName("button primary small active frag")[0].className = "button primary small frag";
+      //activate the element passed in through the function parameter.
+      inElement.className = "button primary small active frag";
+      //set vertshadername to the id of our passed in elemnt.
+
+      fragShaderName = 'fs_' + inElement.id;
+   }
+
+   //borked is a boolean that is true when using the broken json and false when using the new one.
+   var json_file_name = "container/container.json";
+
+   function changeTexture(inElement){
+      if(json_file_name == "container/fixed_container.json"){
+        json_file_name = "container/container.json";
+        inElement.innerHTML = "Take a look at this fixed .json file"
+      } else{
+        json_file_name = "container/fixed_container.json";
+        inElement.innerHTML = "Go back to the broken file";
+      }
+   }
+
+// INITIALIZE GL FOR ONE WEBGL CANVAS:
+
+   function initGL(canvas) {
+       var gl;
+       
+       try {
+          gl = canvas.getContext("webgl") ||
+               canvas.getContext("experimental-webgl");
+          gl.viewportWidth = canvas.width;
+          gl.viewportHeight = canvas.height;
+          gl.clearColor(1.0, 1.0, 1.0, 1.0);
+          gl.enable(gl.DEPTH_TEST);
+       } catch (e) {
+          alert("Could not initialise WebGL.");
+       }
+
+       return gl;
+   }
+
+// CREATE A SHADER PROGRAM:
+
+   function createShader(canvas, src, type) {
+      var gl = canvas.gl;
+      var shader = gl.createShader(type);
+      gl.shaderSource(shader, src);
+      gl.compileShader(shader);
+      if (! gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+         alert(gl.getShaderInfoLog(shader));
+      return shader;
+   }
+
+// FETCH THE STRING CONTENTS OF AN HTML ELEMENT
+
+   function getString(element) {
+      var str = "";
+      for (var k = element.firstChild ; k ; k = k.nextSibling)
+         if (k.nodeType == 3)
+            str += k.textContent;
+      return str;
+   }
+
+
+
+// CREATE A SHADER PROGRAM, GIVEN THE ID OF AN HTML ELEMENT WITH FRAGMENT SHADER CODE:
+
+   function createShaderProgram(canvas, fragShaderId, vertShaderId) {
+      var gl = canvas.gl;
+
+      // GET THE FRAGMENT SHADER STRING FROM A DOCUMENT SCRIPT:
+      var vertShaderStr = getString(document.getElementById(vertShaderId));
+      var fragShaderStr = getString(document.getElementById(fragShaderId));
+
+
+      // BUILD VERTEX AND FRAGMENT SHADERS, LINK TOGETHER INTO A SHADER PROGRAM:
+
+      var vertShader = createShader(canvas, vertShaderStr, gl.VERTEX_SHADER);
+      var fragShader = createShader(canvas, fragShaderStr, gl.FRAGMENT_SHADER);
+
+      var shaderProgram = gl.createProgram();
+      gl.attachShader(shaderProgram, vertShader);
+      gl.attachShader(shaderProgram, fragShader);
+      gl.linkProgram(shaderProgram);
+
+      if (! gl.getProgramParameter(shaderProgram, gl.LINK_STATUS))
+         alert("Could not initialise shaders");
+
+      // FIND THE LOCATIONS OF THE DEFAULT SHADER PROGRAM ATTRIBUTES:
+
+      shaderProgram.vertexPositionAttribute = 
+          gl.getAttribLocation(shaderProgram, "aVertexPosition");
+      gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+      shaderProgram.vertexNormalAttribute = 
+          gl.getAttribLocation(shaderProgram, "aVertexNormal");
+      gl.enableVertexAttribArray(shaderProgram.vertexNormalAttribute);
+
+      shaderProgram.vertexUVAttribute = gl.getAttribLocation(shaderProgram, "aVertexUV");
+      gl.enableVertexAttribArray(shaderProgram.vertexUVAttribute);
+
+      // shaderProgram.vertexColorAttribute = 
+      //     gl.getAttribLocation(shaderProgram, "aVertexColor");
+      // gl.enableVertexAttribArray(shaderProgram.vertexColorAttribute);
+
+      shaderProgram.pMatrixUniform=gl.getUniformLocation(shaderProgram, "uPMatrix");
+      shaderProgram.oMatrixUniform=gl.getUniformLocation(shaderProgram, "uOMatrix");
+
+      // PREPARE TO CREATE THE LOCATIONS FOR THE SHADER'S OTHER ATTRIBUTES:
+
+      shaderProgram.uniformLocations= [];
+
+      shaderProgram.fragShaderStr= fragShaderStr;
+
+      return shaderProgram;
+   }
+
+   function glStart() {
+      
+      // THIS IS NEEDED BECAUSE requestAnimationFrame DOESN'T WORK IN SAFARI:
+
+      window.requestAnimFrame = (function(callback) {
+      return window.requestAnimationFrame ||
+             window.webkitRequestAnimationFrame ||
+             window.mozRequestAnimationFrame ||
+             window.oRequestAnimationFrame ||
+             window.msRequestAnimationFrame ||
+             function(callback) { window.setTimeout(callback,1000/60);};})();
+
+     // START WEBGL:
+
+       startTime = (new Date).getTime();
+
+       // INITIALIZE ALL THE WEBGL CANVASES IN THE DOC:
+
+       var c = document.getElementsByTagName("canvas");
+       for (var n = 0 ; n < c.length ; n++) {
+
+          // ONLY PROCESS A CANVAS IF ITS "data-render" TAG IS SET TO "gl":
+
+          if (c[n].getAttribute("data-render") == "gl") {
+             var canvas = c[n];
+
+             // ADD THIS CANVAS TO THE LIST OF WEBGL CANVASES IN THE DOC:
+
+             glCanvases.push(canvas);
+             canvas.gl = initGL(canvas);
+
+             var model = undefined;
+             
+
+             
+
+             canvas.handle = window[canvas.id];
+             canvas.handle.canvas = canvas;
+             canvas.handle.objects = [];
+             // A quick boolean flag to check whether or not we're still loading our models.
+             // canvas.handle.loadingModel = true;
+             
+             // DEFINE A FUNCTION FOR ADDING AN OBJECT TO THE CANVAS:
+
+             canvas.handle.addObject = function(vertArray, fragShaderId, vertShaderId, indicesArray, texPath) {
+
+                // ADD THIS OBJECT TO THE LIST OF OBJECTS IN THIS CANVAS:
+
+                var obj = [];
+                this.objects.push(obj);
+                this.vertShader = vertShaderId;
+                this.fragShader = fragShaderId;
+                // DEFINE OBJECT'S MATRIX, VERTEX BUFFER AND SHADER PROGRAM:
+
+                obj.matrix = identity();
+                //Initialize our buffers (Sure,)
+                obj.vertexBuffer = createVertexBuffer(this.canvas.gl, vertArray);
+                obj.indexBuffer = createIndexBuffer(this.canvas.gl, indicesArray);
+                console.log(indicesArray);
+                obj.texture = initTexture(this.canvas.gl, texPath);
+
+                obj.shaderProgram = createShaderProgram(this.canvas, fragShaderId, vertShaderId);
+
+                // PARSE THE FRAGMENT SHADER TO GET NAMES+TYPES OF UNIFORM VARIABLES:
+
+                obj.uniformNames = [];
+                obj.uniformTypes = [];
+                obj.uniformValues = [];
+
+                
+
+                function skipSpace(str, j) {
+                   for ( ; str.substring(j, j+1) == " " ; j++) ;
+                   return j;
+                }
+
+                var sProgram = obj.shaderProgram;
+                var str = sProgram.fragShaderStr;
+
+                for (var i = 0 ; i < str.length ; i++) {
+
+                   // PARSE ONE UNIFORM VARIABLE IN SHADER TO GET ITS TYPE AND NAME:
+
+                   var j = str.indexOf("uniform", i);
+                   if (j == -1)
+                      break;
+
+                   j = skipSpace(str, j + "uniform".length);
+                   var k = str.indexOf(" ", j);
+                   var uType = str.substring(j, k);
+
+                   k = skipSpace(str, k);
+                   var l0 = str.indexOf(";", k);
+                   var l1 = str.indexOf(" ", k);
+                   var l = l0 == -1 ? l1 : l1 == -1 ? l0 : Math.min(l0, l1);
+                   var uName = str.substring(k, l);
+
+                   var m = uName.indexOf("[");
+                   if (m >= 0) {
+                      uName = uName.substring(0, m);
+                      uType += "[]";
+                   }
+
+                   // SAVE TYPE, NAME AND DEFAULT VALUE OF THIS UNIFORM VARIABLE:
+
+                   obj.uniformTypes.push(uType);
+                   obj.uniformNames.push(uName);
+                   obj.uniformValues.push(
+                      uType == "vec2"    ? [0,0]
+                    : uType == "vec3"    ? [0,0,0]
+                    : uType == "vec4"    ? [0,0,0,0]
+                    : uType == "mat4"    ? identity()
+                    : uType == "float[]" ? [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+                    : 0);
+
+                   // RECORD THE LOCATION OF THIS VARIABLE IN THE SHADER PROGRAM:
+
+                   sProgram.uniformLocations[uName] =
+                      this.canvas.gl.getUniformLocation(sProgram, uName);
+
+                   i = l + 1;
+                }
+
+                // GIVEN THE NAME OF A UNIFORM VARIABLE, SET ITS VALUE FOR THIS OBJECT:
+
+                obj.setUniform = function(name, value) {
+                   for (var i = 0 ; i < this.uniformNames.length ; i++)
+                      if (this.uniformNames[i] == name) {
+                         this.uniformValues[i] = value;
+                         break;
+                      }
+                }
+             }
+
+             // INIT THE CANVAS'S EVENT HANDLERS, THEN CALL THE USER'S SETUP FUNCTION:
+
+             initEventHandlers(canvas);
+             //Load function calls back the setup function.
+              canvas1.loadModel = function(filename){
+                var request = new XMLHttpRequest();
+                request.open("GET", filename);
+                request.onreadystatechange = function () {
+                  if (request.readyState == 4) {
+                      canvas.handle.setup(JSON.parse(request.responseText));
+                      canvas.handle.jsonName = filename;
+
+                  }
+                }
+                request.send();
+             }
+             canvas.handle.loadModel(json_file_name);
+             
+          }
+       }
+
+       // START THE ANIMATION LOOP:
+
+       var tick = function() {
+          time = ((new Date).getTime() - startTime) / 1000;
+      deltaTime = time - prevTime;
+      prevTime = time;
+
+          for (var n = 0 ; n < glCanvases.length ; n++) {
+             if(modelLoaded)
+              glCanvases[n].handle.update();
+             
+             drawScene(glCanvases[n]);
+          }
+          requestAnimFrame(tick);
+       };
+       
+        tick();
+       
+   }
+
+// INITIALIZE RESPONSE BEHAVIOR TO USER MOUSE INPUT:
+
+   function initEventHandlers(canvas)
+   {
+      canvas.onmousedown = function(event) { // Mouse pressed
+         this.handle.mousePressed = true;
+         moveMouse(this.handle, event);
+      }
+      canvas.onmouseup = function(event) {   // Mouse released
+         this.handle.mousePressed = false;
+      }
+      canvas.onmousemove = function(event) { // Mouse moved
+   moveMouse(this.handle, event);
+      }
+
+      function moveMouse(handle, event) {
+         var x = event.clientX;
+         var y = event.clientY;
+         var rect = event.target.getBoundingClientRect();
+         if ( rect.left <= x && x <= rect.right &&
+              rect.top  <= y && y <= rect.bottom ) {
+            handle.mouseX = x - rect.left;
+            handle.mouseY = y - rect.top;
+         }
+      };
+   }
+
+  // CREATE THE GL VERTEX BUFFER FOR ONE VERTEX ARRAY:
+
+   function createVertexBuffer(gl, vertArray) {
+      var vertexBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertArray), gl.STATIC_DRAW);
+
+      vertexBuffer.positionElementCount = 4;
+      vertexBuffer.normalElementCount   = 3;
+      vertexBuffer.textureElementCount    = 2;
+
+      vertexBuffer.positionOffset = 0 * Float32Array.BYTES_PER_ELEMENT;
+      vertexBuffer.normalOffset   = 4 * Float32Array.BYTES_PER_ELEMENT;
+      vertexBuffer.textureOffset  = 7 * Float32Array.BYTES_PER_ELEMENT;
+      vertexBuffer.stride         = 9 * Float32Array.BYTES_PER_ELEMENT;
+
+      vertexBuffer.numItems = vertArray.length / 9;
+    //console.log(vertexBuffer);
+      return vertexBuffer;
+   }
+   
+   function createIndexBuffer(gl, indices){
+     // this is the array that
+     indices = new Uint16Array(indices);
+     //console.log(indices);
+     var indexBuffer = gl.createBuffer();
+       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+     indexBuffer.numItems = indices.length;
+     //console.log(indexBuffer);
+     
+     return indexBuffer;
+   }
+
+
+
+// DRAW ONE WEBGL CANVAS FOR THIS ANIMATION FRAME
+
+   function drawScene(canvas) {
+      var gl = canvas.gl;
+      gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      for (var n = 0 ; n < canvas.handle.objects.length ; n++)
+         drawObject(gl, canvas.handle.objects[n]);
+   }
+
+// DRAW A SINGLE OBJECT OF A WEBGL CANVAS
+
+   function drawObject(gl, obj) {
+      var sProgram = obj.shaderProgram;
+      var vBuffer = obj.vertexBuffer;
+
+      gl.useProgram(sProgram);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.indexBuffer);
+
+      // SET VALUES FOR THIS FRAME FOR ALL DEFAULT UNIFORMS:
+
+      gl.vertexAttribPointer( sProgram.vertexPositionAttribute,
+                              vBuffer.positionElementCount, 
+                              gl.FLOAT, 
+                              false, 
+                              vBuffer.stride, 
+                              vBuffer.positionOffset
+                              );
+      gl.vertexAttribPointer( sProgram.vertexNormalAttribute,
+                              vBuffer.normalElementCount, 
+                              gl.FLOAT, 
+                              false, 
+                              vBuffer.stride, 
+                              vBuffer.normalOffset
+                              );
+      gl.vertexAttribPointer( sProgram.vertexUVAttribute, 
+                              vBuffer.textureElementCount, 
+                              gl.FLOAT, 
+                              false, 
+                              vBuffer.stride, 
+                              vBuffer.textureOffset 
+                              );
+
+
+    gl.uniform1f(gl.getUniformLocation(sProgram, "time"), time);
+    var view = mat4.create();
+    mat4.identity(view);
+    
+    //REMEMBER: View matrix isn't the camera transform! It's the *inverse* of the camera transform. Hence the -2 to move "backwards"
+    mat4.translate(view, vec3.create([0,0,-2]));
+    var proj = mat4.create();
+    mat4.perspective(45, 1, .1, 10, proj);
+    var pv = mat4.create();
+    mat4.multiply(proj, view, pv);
+    
+    //The projection * view matrix.
+    gl.uniformMatrix4fv(sProgram.pMatrixUniform, false, pv);
+    //Matrix of the object in  its own coordinates.
+    gl.uniformMatrix4fv(sProgram.oMatrixUniform, false, obj.matrix);
+    //Send in the sampler uniform
+    gl.activeTexture(gl.TEXTURE0);
+    gl.uniform1i(gl.getUniformLocation(sProgram, "uSampler"), 0);
+
+
+      // SET THE VALUES FOR THIS FRAME FOR ALL USER DEFINED UNIFORMS:
+
+      for (var i = 0 ; i < obj.uniformNames.length ; i++) {
+         var name = obj.uniformNames[i];
+         var type = obj.uniformTypes[i];
+         var val  = obj.uniformValues[i];
+         var loc  = sProgram.uniformLocations[name];
+
+   // SETTING EACH TYPE OF UNIFORM REQUIRES A DIFFERENT GL FUNCTION:
+
+         if (type == "float")
+            gl.uniform1f(loc, val);
+         else if (type == "float[]")
+            gl.uniform1fv(loc, val);
+         else if (type == "vec2")
+            gl.uniform2fv(loc, val);
+         else if (type == "vec3")
+            gl.uniform3fv(loc, val);
+         else if (type == "vec4")
+            gl.uniform4fv(loc, val);
+         else if (type == "mat4")
+            gl.uniformMatrix4fv(loc, false, val);
+      }
+
+
+      //gl.drawArrays(gl.TRIANGLE_STRIP, 0, vBuffer.numItems);
+    gl.drawElements(gl.TRIANGLES, obj.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
+   }
+    function initTexture(gl, filename){
+      var textureBuffer = gl.createTexture();
+      //Before the texture loads, use a temporary texture that's simply 1x1. Gets rid of that whole "texture complete" warning. While this fixes the warning, it does NOT fix my weird texture bug...
+      gl.bindTexture(gl.TEXTURE_2D, textureBuffer);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+              new Uint8Array([0, 0, 0, 255])); // black
+
+      var image = new Image();
+      image.src = filename; //the Image object gives us image loading "for free"
+      image.onload = function() {handleTextureOnLoad(gl, image, textureBuffer)}; //called when image is done loading
+
+      return textureBuffer;
+    }
+
+    function handleTextureOnLoad(gl, image, textureBuffer) {
+
+     // Flip the image's Y axis to match the WebGL texture coordinate space (Why don't most tutorials talk about this...)
+     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+     // Put the image data into the data structure.
+     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image); 
+     //Filtering sillinness
+     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); //Linear filtering when scaling to avoid some
+     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST); //use mipmap when scaling down
+     //Generate the mipmap pattywap.
+     gl.generateMipmap(gl.TEXTURE_2D);
+
+     //Signal that our texture is loaded to the entire program.
+     textureLoaded = true;
+
+    }
+// CREATE SMOOTHED CUBE GEOMETRY:
+   
+   function cubeVerts(){ //0.435000, 0.903000, 0.624000 is a lovely Bermuda Grey
+     var vertices = [-1.000000, -0.899410, 0.899410, -1.000000, 0.000000, 0.000000, 0.451000, 0.545000, 0.635
+,-0.899410, -1.000000, 0.899410, 0.000000, -1.000000, 0.000000, 0.451000, 0.545000, 0.635
+,-0.899410, -0.899410, 1.000000, 0.000000, 0.000000, 1.000000, 0.451000, 0.545000, 0.635
+,0.899410, -1.000000, 0.899410, 0.000000, -1.000000, 0.000000, 0.451000, 0.545000, 0.635
+,1.000000, -0.899410, 0.899410, 1.000000, 0.000000, 0.000000, 0.451000, 0.545000, 0.635
+,0.899410, -0.899410, 1.000000, 0.000000, 0.000000, 1.000000, 0.451000, 0.545000, 0.635
+,-0.899410, 1.000000, 0.899410, 0.000000, 1.000000, 0.000000, 0.451000, 0.545000, 0.635
+,-1.000000, 0.899410, 0.899410, -1.000000, 0.000000, 0.000000, 0.451000, 0.545000, 0.635
+,-0.899410, 0.899410, 1.000000, 0.000000, 0.000000, 1.000000, 0.451000, 0.545000, 0.635
+,1.000000, 0.899410, 0.899410, 1.000000, 0.000000, 0.000000, 0.451000, 0.545000, 0.635
+,0.899410, 1.000000, 0.899410, 0.000000, 1.000000, 0.000000, 0.451000, 0.545000, 0.635
+,0.899410, 0.899410, 1.000000, 0.000000, 0.000000, 1.000000, 0.451000, 0.545000, 0.635
+,-0.899410, 0.899410, -1.000000, 0.000000, 0.000000, -1.000000, 0.451000, 0.545000, 0.635
+,-1.000000, 0.899410, -0.899410, -1.000000, 0.000000, 0.000000, 0.451000, 0.545000, 0.635
+,-0.899410, 1.000000, -0.899410, 0.000000, 1.000000, 0.000000, 0.451000, 0.545000, 0.635
+,1.000000, 0.899410, -0.899410, 1.000000, 0.000000, 0.000000, 0.451000, 0.545000, 0.635
+,0.899410, 0.899410, -1.000000, 0.000000, 0.000000, -1.000000, 0.451000, 0.545000, 0.635
+,0.899410, 1.000000, -0.899410, 0.000000, 1.000000, 0.000000, 0.451000, 0.545000, 0.635
+,-0.899410, -1.000000, -0.899410, 0.000000, -1.000000, 0.000000, 0.451000, 0.545000, 0.635
+,-1.000000, -0.899410, -0.899410, -1.000000, 0.000000, 0.000000, 0.451000, 0.545000, 0.635
+,-0.899410, -0.899410, -1.000000, 0.000000, 0.000000, -1.000000, 0.451000, 0.545000, 0.635
+,1.000000, -0.899410, -0.899410, 1.000000, 0.000000, 0.000000, 0.451000, 0.545000, 0.635
+,0.899410, -1.000000, -0.899410, 0.000000, -1.000000, 0.000000, 0.451000, 0.545000, 0.635
+,0.899410, -0.899410, -1.000000, 0.000000, 0.000000, -1.000000, 0.451000, 0.545000, 0.635
+];
+     
+     return vertices;
+   }
+   
+   function cubeIndices(){
+     var indices = [18,22,1,1,22,3,5,11,2,2,11,8,7,13,0,0,13,19,21,15,4,4,15,9,10,17,6,6,17,14,16,23,12,12,23,20,1,0,18,18,0,19,2,1,5,5,1,3,0,2,7,7,2,8,4,3,21,21,3,22,5,4,11,11,4,9,7,6,13,13,6,14,6,8,10,10,8,11,10,9,17,17,9,15,13,12,19,19,12,20,12,14,16,16,14,17,16,15,23,23,15,21,18,20,22,22,20,23,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23];
+     
+     return indices;
+   }
+   //This is now a callback of LoadModel to avoid some nastiness with scope.
+    canvas1.setup = function(payload){
+
+      this.model = payload;
+      for(var i = 0; i < payload.model.length; i++){
+
+
+        index_array = new Float32Array(payload.model[i].indices);
+        var stride_length = 9;
+        //4 for position, 3 for normal, 2 for textures.
+        total_indices = (stride_length*payload.model[i].position.length)/4;
+        vertex_array = new Float32Array(total_indices);
+        console.log(total_indices);
+        //create the vertex array.
+        var pos_count = 0; //counter for our position array so we know where we are when we're traversing
+        var nor_count = 0; //same thing for normals.
+        var tex_count = 0; //And texture coordinates.
+        var vert_positions = payload.model[i].position;
+        var vert_norms = payload.model[i].normal;
+        var vert_uvs = payload.model[i].texCoord;
+        //I know this is bad... Maybe I should make a model object.
+        var texPath ="container/" + payload.model[i].material.texture;
+        for(var j = 0; j < total_indices; j++){
+          mod_count = j%stride_length;
+          if(mod_count < 4){
+            vertex_array[j] = vert_positions[pos_count];
+
+            pos_count++;
+          } else if (mod_count >= 4 && mod_count < 7){
+            vertex_array[j] = vert_norms[nor_count];
+            nor_count++;
+          } else if (mod_count >= 7){
+            vertex_array[j] = vert_uvs[tex_count];
+            tex_count++;
+          }
+        }  
+        //Now we can call our canvas's add object function.
+        console.log(vertex_array, index_array, texPath);
+        this.addObject(vertex_array,fragShaderName, vertShaderName, index_array, texPath); 
+      }
+
+      //Indicate to the rest of the program that our model has loaded.
+      modelLoaded = true;     
+
+    }
+
+    canvas1.update = function() {
+        
+          var obj0 = this.objects[0];
+      
+          mat4.rotateX(obj0.matrix, 1.1 * deltaTime);
+          mat4.rotateY(obj0.matrix, 1.1 * deltaTime);
+          //delete our object and replace it with a new one if I want to switch textures and/or shaders. This avoids a lot of rerouting that got really really ugly.
+          if(vertShaderName != this.vertShader || json_file_name != this.jsonName || fragShaderName != this.fragShader){
+            this.vertShader = vertShaderName;
+            this.objects= [];
+            this.loadModel(json_file_name);
+          }
+          //lighting for phong shader
+          obj0.setUniform('p', [.1,.1,.1, 0.451000, 0.545000, 0.635, 1,1,1,20]);
+          obj0.setUniform('lDir', [.57,.57,.57]);
+
+          if (this.mousePressed)
+             console.log("canvas1 drag " + this.mouseX + " " + this.mouseY);
+        
+    }
+
+
+</script>
+
+</body></html>
